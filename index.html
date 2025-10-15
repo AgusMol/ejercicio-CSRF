@@ -2,20 +2,35 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Página de Rastreo Simple</title>
+    <title>Página de Rastreo Simple con Respuesta</title>
+    <style>
+        /* Estilos básicos para que el contenido de la respuesta sea legible */
+        #respuesta-servidor {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            white-space: pre-wrap; /* Mantiene los saltos de línea y espacios */
+            background-color: #f7f7f7;
+        }
+    </style>
 </head>
 <body>
 
     <h1>Página de Pruebas</h1>
     <p>Esta página está diseñada para hacer una petición GET al cargar.</p>
+    
     <p id="estado-peticion">Estado: Enviando petición...</p>
+    
+    <h2>Respuesta del Servidor:</h2>
+    <div id="respuesta-servidor">Esperando respuesta...</div>
 
     <script>
         // La URL a la que deseas enviar la petición GET
         const URL_OBJETIVO = 'https://chl-a85cf6b8-7049-4023-abe6-fee13a1a5d5a-imagen-importante.softwareseguro.com.ar/profile-pic';
         
-        // Elemento para mostrar el estado
+        // Elementos para mostrar el estado y la respuesta
         const estadoElemento = document.getElementById('estado-peticion');
+        const respuestaElemento = document.getElementById('respuesta-servidor');
 
         // Función que se ejecuta al cargar la página
         window.onload = function() {
@@ -25,12 +40,17 @@
                     estadoElemento.textContent = `Estado: Petición enviada con éxito (Status: ${response.status}).`;
                     console.log('Petición GET exitosa:', response);
                     
-                    // Si quieres leer la respuesta del servidor (no necesario para solo el GET)
-                    // return response.text(); 
+                    // IMPORTANTE: Leer el cuerpo de la respuesta como texto.
+                    return response.text(); 
+                })
+                .then(data => {
+                    // Mostrar el cuerpo de la respuesta (el contenido) en el div
+                    respuestaElemento.textContent = data;
                 })
                 .catch(error => {
                     // La petición falló por un error de red o CORS
                     estadoElemento.textContent = `Estado: Error al enviar la petición. Revisa la consola (F12) para detalles.`;
+                    respuestaElemento.textContent = `Error: ${error.message}`;
                     console.error('Error en la petición GET:', error);
                 });
         };
